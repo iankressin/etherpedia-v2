@@ -4,27 +4,10 @@ import { Pipeline } from "@/app/agents/Pipeline";
 import { research } from "@/app/agents/researcher";
 import { edit } from "@/app/agents/editor";
 import { write } from "@/app/agents/writer";
-import { createHelia } from "helia";
-import { strings } from "@helia/strings";
-import { MongoClient, ServerApiVersion } from "mongodb";
-import { ArticleMetadata } from "@/app/models/article";
+import { MetadataSchema } from "@/app/models/article";
 import matter from "gray-matter";
-import * as z from "zod";
-
-const mongoClient = getMongoClient();
-
-const dateString = z.string().refine((val) => !isNaN(Date.parse(val)), {
-  message: "Expected a valid date string",
-});
-
-const MetadataSchema = z.object({
-  title: z.string(),
-  cid: z.string(),
-  createdAt: dateString,
-  updatedAt: dateString.optional(),
-  tags: z.array(z.string()),
-  description: z.string(),
-});
+import { saveArticleMetadata } from "@/app/lib/mongo";
+import { uploadFile } from "@/app/lib/ipfs";
 
 export async function generateArticle(
   userPrompt: string,
@@ -36,12 +19,15 @@ export async function generateArticle(
       .push(edit)
       .run(userPrompt);
 
-    const cid = await uploadToIPFS(result);
-    console.log({
-      data: matter(result).data,
+    const frontMatter = matter(result).data;
+    const cid = await uploadFile(result, frontMatter.title);
+    const metadata = MetadataSchema.parse({
+      ...frontMatter,
+      cid,
+      createdAt: new Date(),
     });
-    const metadata = MetadataSchema.parse({ ...matter(result).data, cid });
-    await saveMetadata(metadata);
+
+    await saveArticleMetadata(metadata);
 
     return { cid };
   } catch (error) {
@@ -49,46 +35,4 @@ export async function generateArticle(
 
     return { cid: "" };
   }
-}
-
-async function uploadToIPFS(article: string): Promise<string> {
-  const helia = await createHelia();
-  const s = strings(helia);
-  const cid = await s.add(article);
-  return cid.toString();
-}
-
-async function saveMetadata(metadata: ArticleMetadata) {
-  try {
-    await mongoClient.connect();
-    const db = mongoClient.db("etherpedia-metadata");
-
-    const inserted = await db.collection("metadata").insertOne({
-      metadata,
-    });
-
-    console.log({
-      inserted,
-    });
-  } catch (e) {
-    console.log(e);
-  } finally {
-    await mongoClient.close();
-  }
-}
-
-function getMongoClient(): MongoClient {
-  const mongoDbUri = process.env.MONGODB_CONNECTION_URI;
-
-  if (!mongoDbUri) {
-    throw new Error("MONGODB_CONNECTION_URI is not defined");
-  }
-
-  return new MongoClient(mongoDbUri, {
-    serverApi: {
-      version: ServerApiVersion.v1,
-      strict: true,
-      deprecationErrors: true,
-    },
-  });
 }

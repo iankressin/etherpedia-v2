@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getArticles } from "@/app/actions/get-articles";
 import { ArticleMetadata } from "../models/article";
 import { generateArticle } from "@/app/actions/generate-article";
+import { GridLoader, PulseLoader } from "react-spinners";
 
 export default function List() {
     const [articles, setArticles] = useState<ArticleMetadata[]>()
@@ -12,15 +13,26 @@ export default function List() {
     const [showGenerateArticle, setShowGenerateArticle] = useState<boolean>(false)
     const [generatingArticle, setGeneratingArticle] = useState<boolean>(false) 
     const [newArticleCid, setNewArticleCid] = useState<string>("")
+    const [loadingSearch, setLoadingSearch] = useState<boolean>(false)
+    const [loadingArticles, setLoadingArticles] = useState<boolean>(true)
 
     useEffect(() => {
         const debounceTimeout = setTimeout(() => {
             setShowGenerateArticle(false)
 
-            getArticles(searchTerm).then((articles) => {
-                if (!articles.length) setShowGenerateArticle(true)
-                setArticles(articles);
-            });
+            if (searchTerm)
+                setLoadingSearch(true)
+
+            getArticles(searchTerm)
+                .then((articles) => {
+                    if (!articles.length) setShowGenerateArticle(true)
+                    setArticles(articles);
+                })
+                .catch(e => console.log(e))
+                .finally(() => {
+                    setLoadingSearch(false)
+                    setLoadingArticles(false)
+                })
         }, 500);
 
         return () => {
@@ -44,27 +56,51 @@ export default function List() {
     }
 
     return (
-        <div className="flex flex-col gap-8">
-            <h1 className="text-3xl font-bold">Articles</h1>
-            <input
-                className="w-min text-black py-1 px-2 rounded-md"
-                type="text"
-                name="search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        <div className="flex flex-col gap-16">
+            <div className="flex justify-between items-center">
+                <h1 className="text-3xl font-bold">Etherpedia</h1>
+                <div className="flex gap-2 items-center">
+                    { loadingSearch ? (<GridLoader color="#ffffff" size={8}/>) : (<label htmlFor="search" className="font-bold">Search</label>)}
+                    <input
+                        className="w-min text-black py-1 px-2 rounded-md"
+                        type="text"
+                        name="search"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </div>
             {
-                showGenerateArticle && (
-                    <div className="flex flex-col gap-2 ">
-                        <p>
-                            No article found for {searchTerm}. Do you want to generate one?
+                loadingArticles && (
+                    <div className="flex flex-col justify-center items-center gap-4">
+                        <h1 className="text-gray-300 text-xl font-bold">Fetching articles</h1>
+                        <GridLoader color="#ffffff"/>
+                    </div>
+                )
+            }
+            {
+                !searchTerm && !showGenerateArticle && !articles?.length && !loadingArticles && (
+                    <p>
+                        No articles yet
+                    </p>
+                )
+            }
+            {
+                searchTerm && showGenerateArticle && !newArticleCid && (
+                    <div className="flex flex-col gap-2 items-center justify-center">
+                        <p className="font-semibold">
+                            { 
+                                generatingArticle ? (`Generating a new article for "${searchTerm}"`) : `No article found for ${searchTerm}. Do you want to generate one?`
+                            }
                         </p>
                         <button
-                            className="border border-zinc-400 rounded-md px-4 py-2 w-min"
+                            className="border border-zinc-400 rounded-md px-4 py-2 w-fit"
                             onClick={handleArticleCreation}
                             disabled={generatingArticle}
                         >
-                        { generatingArticle ? "Please wait..." : "Generate"}
+                        { generatingArticle ? (
+                            <PulseLoader color="#ffffff" size={8}/>
+                        ) : "Generate"}
                         </button>
                     </div>
                 )
@@ -72,10 +108,11 @@ export default function List() {
 
             {
                 !generatingArticle && newArticleCid && (
-                    <div>
-                        <h2 className="text-2xl font-bold">New Article</h2>
-                        <Link href={`/articles/${newArticleCid}`}>
-                            A new article has been generated. Click here to view it.
+                    <div className="flex flex-col items-center justify-center gap-2">
+                        <h2 className="text-2xl font-bold">Your article is ready</h2>
+                        <p className="text-lg">An article about &ldquo;{searchTerm}&ldquo; has been generated.</p>
+                        <Link href={`/articles/${newArticleCid}`} className="border border-zinc-400 rounded-md px-4 py-2 w-fit">
+                            Click here to view it.
                         </Link>
                     </div>
                 )
@@ -83,11 +120,11 @@ export default function List() {
 
             <div className="flex flex-col gap-8">
                 {articles?.map((article) => (
-                    <div key={article.cid}>
+                    <Link key={article.cid} href={`articles/${article.cid}`} className="flex flex-col gap-2 max-w-[600px]">
                         <h2 className="text-2xl font-bold">{article.title}</h2>
-                        <p>{article.createdAt}</p>
-                        {article.updatedAt && <span>{article.updatedAt}</span>}
-                    </div>
+                        <i className="text-sm">{article.description}</i>
+                        <p className="text-sm">Published at: {article.createdAt.toLocaleDateString()}</p>
+                    </Link>
                 ))}
             </div>
         </div>

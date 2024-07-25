@@ -1,37 +1,31 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { Article } from '../../models/article';
-import path from 'path';
-import { promises as fs } from 'fs';
-import { CID } from 'multiformats/cid'
 import matter from 'gray-matter';
 import Markdown from 'markdown-to-jsx';
-import { createHelia } from 'helia';
-import { strings } from '@helia/strings';
+import Link from 'next/link';
 
 // Define the metadata for the article page
 export const metadata: Metadata = {
   title: 'Article',
 };
 
-async function fetchArticle(id: string): Promise<Article | null> {
+async function fetchArticle(id: string): Promise<string | null> {
 
   try {
-    const helia = await createHelia();
-    const s = strings(helia);
+      console.log('Fethcihng article with id: ', id)
+      console.time('ipfs')
+    const res = await fetch(`https://tomato-pretty-tern-662.mypinata.cloud/ipfs/${id}`)
+    const article = await res.text()
+    console.timeEnd('ipfs')
+    console.log({
+        article
+    })
 
-    const fileContents = await s.get(CID.parse(id));
-    const parsedPost = matter(fileContents)
+    console.log({
+        content: matter(article).content
+    })
 
-    // TODO: dynamic title, author, id, and createdAt
-    return {
-        title: 'Article',
-        author: 'GPT',
-        id: 'id',
-        createdAt: '2024-07-24',
-        content: parsedPost.content,
-        tags: ['GPT', 'AI']
-    }
+    return matter(article).content;
   } catch (error) {
       console.log('Error: ', error)
     return null;
@@ -47,9 +41,12 @@ export default async function ArticlePage({ params }: { params: { id: string } }
 
   return (
     <div>
-        <article className='
+        <Link href="/articles">
+            Back to articles
+        </Link>
+        <article className="
         h-full w-full laptop:max-w-4xl py-8 px-8 laptop:px-20 flex flex-col gap-16
-        [&>div>h1]:text-2xl [&>div>h1]:font-bold [&>div>h1]:mt-2 [&>div>h1]:font-sans [&>div>h1]:text-red
+        [&>div>h1]:text-2xl [&>div>h1]:font-bold [&>div>h1]:mt-12 [&>div>h1]:font-sans [&>div>h1]:text-red
         [&>div>h2]:text-xl [&>div>h2]:font-bold [&>div>h2]:mt-10 [&>div>h2]:font-sans [&>div>h2]:text-blue
         [&>div>h3]:text-md [&>div>h3]:font-bold [&>div>h3]:mt-4 [&>div>h3]:font-sans [&>div>h3]:text-green
         [&>div>h4]:text-md [&>div>h4]:font-bold [&>div>h4]:mt-2 [&>div>h4]:font-sans [&>div>h4]:text-yellow
@@ -60,9 +57,9 @@ export default async function ArticlePage({ params }: { params: { id: string } }
         [&>div>ul>li]:list-disc [&>div>ul]:gap-2 [&>div>ul]:flex [&>div>ul]:flex-col
         [&>div>ul>li>ul]:list-[circle] [&>div>ul>li>ul]:px-8
         [&>div>ul>li>p>code]:bg-stone-900 [&>div>ul>li>p>code]:p-1 [&>div>ul>li>p>code]:rounded [&>div>ul>li>p>code]:text-sm
-        '>
+        ">
             <Markdown>
-                {article.content}
+                {article}
             </Markdown>
         </article>
     </div>
