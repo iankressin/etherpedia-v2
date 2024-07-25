@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getArticles } from "@/app/actions/get-articles";
 import { ArticleMetadata } from "../models/article";
-import { generateArticle } from "@/app/actions/generate-article";
+import { generateArticle, pollArticleGeneration } from "@/app/actions/generate-article";
 import { GridLoader, PulseLoader } from "react-spinners";
 
 export default function List() {
@@ -43,11 +43,16 @@ export default function List() {
     async function handleArticleCreation() {
         try {
             setGeneratingArticle(true)
-            const { cid }= await generateArticle(searchTerm)
+            generateArticle(searchTerm)
 
-            if (cid) {
-                setNewArticleCid(cid)
-            }
+            let cid: string | undefined = undefined
+            const interval = setInterval(async () => {
+                cid = await pollArticleGeneration(searchTerm)
+                if (cid) {
+                    setNewArticleCid(cid)
+                    clearInterval(interval)
+                }
+            }, 1000)
         } catch {
             console.log('something went wrong')
         } finally {

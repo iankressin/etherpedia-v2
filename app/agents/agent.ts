@@ -17,7 +17,7 @@ export function runAgent(agentPrompt: string) {
           content: userPrompt,
         },
       ],
-      model: "gpt-4o",
+      model: "gpt-3.5-turbo-16k",
       stream: false,
     });
 
