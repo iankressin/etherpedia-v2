@@ -4,6 +4,7 @@ import PinataSDK from "@pinata/sdk";
 import { Readable } from "stream";
 
 export async function uploadFile(file: string, name: string): Promise<string> {
+  console.log("Uploading file with name: ", name);
   const readable = Readable.from(file);
 
   const pinned = await getPinataClient().pinFileToIPFS(readable, {

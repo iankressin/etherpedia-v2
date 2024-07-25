@@ -20,6 +20,7 @@ export async function generateArticle(
       .run(userPrompt);
 
     const frontMatter = matter(result).data;
+    console.log(frontMatter);
     const cid = await uploadFile(result, frontMatter.title);
     const metadata = MetadataSchema.parse({
       ...frontMatter,
