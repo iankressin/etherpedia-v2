@@ -9,6 +9,7 @@ const articles = [
     updatedAt: "2021-01-01",
     createdAt: "2021-01-01",
     tags: ["shared sequencing", "scalability"],
+    description: "This is the first article",
   },
 ];
 

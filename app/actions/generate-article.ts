@@ -1,9 +1,9 @@
 "use server";
 
-import { Pipeline } from "@/app/lib/agents/Pipeline";
-import { research } from "@/app/lib/agents/researcher";
-import { edit } from "@/app/lib/agents/editor";
-import { write } from "@/app/lib/agents/writer";
+import { Pipeline } from "@/app/agents/Pipeline";
+import { research } from "@/app/agents/researcher";
+import { edit } from "@/app/agents/editor";
+import { write } from "@/app/agents/writer";
 import { createHelia } from "helia";
 import { strings } from "@helia/strings";
 import { MongoClient, ServerApiVersion } from "mongodb";

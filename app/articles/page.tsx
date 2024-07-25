@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getArticles } from "@/app/server/actions/get-articles";
+import { getArticles } from "@/app/actions/get-articles";
 import { ArticleMetadata } from "../models/article";
-import { generateArticle } from "@/app/server/actions/generate-article";
+import { generateArticle } from "@/app/actions/generate-article";
 
 export default function List() {
     const [articles, setArticles] = useState<ArticleMetadata[]>()
@@ -83,7 +83,7 @@ export default function List() {
 
             <div className="flex flex-col gap-8">
                 {articles?.map((article) => (
-                    <div key={article.id}>
+                    <div key={article.cid}>
                         <h2 className="text-2xl font-bold">{article.title}</h2>
                         <p>{article.createdAt}</p>
                         {article.updatedAt && <span>{article.updatedAt}</span>}
