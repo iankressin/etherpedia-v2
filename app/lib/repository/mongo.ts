@@ -1,7 +1,7 @@
 "use server";
 
 import { MongoClient, ServerApiVersion } from "mongodb";
-import { ArticleMetadata, MetadataSchema } from "../models/article";
+import { ArticleMetadata, MetadataSchema } from "@/app/models/article";
 
 export async function saveArticleMetadata(metadata: ArticleMetadata) {
   const mongoClient = getMongoClient();

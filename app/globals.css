@@ -31,3 +31,7 @@ body {
     text-wrap: balance;
   }
 }
+
+p > a {
+    color: #0170ba;
+}

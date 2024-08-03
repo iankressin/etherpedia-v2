@@ -4,54 +4,89 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getArticles } from "@/app/actions/get-articles";
 import { ArticleMetadata } from "../models/article";
-import { generateArticle } from "@/app/actions/generate-article";
 import { GridLoader, PulseLoader } from "react-spinners";
+import { AgentEventSource } from "@/app/lib/AgentEventSource";
+import Markdown from 'markdown-to-jsx';
+import { AgentStep } from "@/app/lib/ArticleEventPayload";
+
+const stepLabel = {
+    [AgentStep.Init]: 'Assembling our team',
+    [AgentStep.Research]: 'Researching',
+    [AgentStep.Write]: 'Writing',
+    [AgentStep.Edit]: 'Editing',
+    [AgentStep.Final]: 'Final Article',
+}
 
 export default function List() {
     const [articles, setArticles] = useState<ArticleMetadata[]>()
     const [searchTerm, setSearchTerm] = useState<string>("")
-    const [showGenerateArticle, setShowGenerateArticle] = useState<boolean>(false)
-    const [generatingArticle, setGeneratingArticle] = useState<boolean>(false) 
     const [newArticleCid, setNewArticleCid] = useState<string>("")
     const [loadingSearch, setLoadingSearch] = useState<boolean>(false)
     const [loadingArticles, setLoadingArticles] = useState<boolean>(true)
+    const [stepContent, setStepContent] = useState<string>("")
+    const [articleStep, setArticleStep] = useState<AgentStep | undefined>()
 
     useEffect(() => {
-        const debounceTimeout = setTimeout(() => {
-            setShowGenerateArticle(false)
+        setStepContent("")
+        setNewArticleCid("")
+        setArticleStep(undefined)
+        setStepContent("")
+        setNewArticleCid("")
 
+        const debounceTimeout = setTimeout(async () => {
             if (searchTerm)
                 setLoadingSearch(true)
 
-            getArticles(searchTerm)
-                .then((articles) => {
-                    if (!articles.length) setShowGenerateArticle(true)
-                    setArticles(articles);
-                })
-                .catch(e => console.log(e))
-                .finally(() => {
-                    setLoadingSearch(false)
-                    setLoadingArticles(false)
-                })
-        }, 500);
+            try {
+                const articles = await getArticles(searchTerm)
+
+                if (!articles.length) {
+                    handleArticleCreation(searchTerm)
+                }
+
+                setArticles(articles);
+            } catch (e) {
+                console.error('Failed to fetch articles: ', e)
+            } finally {
+                setLoadingSearch(false)
+                setLoadingArticles(false)
+            }
+
+        }, 600);
 
         return () => {
             clearTimeout(debounceTimeout);
         };
     }, [searchTerm]);
 
-    async function handleArticleCreation() {
+    // TODO: refactor
+    function handleArticleCreation(searchTerm: string) {
         try {
-            setGeneratingArticle(true)
-            const { cid }= await generateArticle(searchTerm)
+            setArticleStep(AgentStep.Init)
+            const agentEvent = new AgentEventSource(searchTerm)
 
-            if (cid) {
-                setNewArticleCid(cid)
-            }
-        } catch {
-            console.log('something went wrong')
-        } finally {
-            setGeneratingArticle(false)
+            agentEvent.onResearch(event => {
+                setArticleStep(event.step)
+                setStepContent(event.data)
+            })
+
+            agentEvent.onWrite(event => {
+                setArticleStep(event.step)
+                setStepContent(event.data)
+            })
+
+            agentEvent.onEdit(event => {
+                setArticleStep(event.step)
+                setStepContent(event.data)
+            })
+
+            agentEvent.onFinalArticle(event => {
+                setArticleStep(event.step)
+                setStepContent("")
+                setNewArticleCid(event.data)
+            })
+        } catch (e) {
+            console.log('Failed to open stream channel: ', e)
         }
     }
 
@@ -78,36 +113,29 @@ export default function List() {
                     </div>
                 )
             }
-            {
-                !searchTerm && !showGenerateArticle && !articles?.length && !loadingArticles && (
-                    <p>
-                        No articles yet
-                    </p>
-                )
-            }
-            {
-                searchTerm && showGenerateArticle && !newArticleCid && (
-                    <div className="flex flex-col gap-2 items-center justify-center">
-                        <p className="font-semibold">
-                            { 
-                                generatingArticle ? (`Generating a new article for "${searchTerm}"`) : `No article found for ${searchTerm}. Do you want to generate one?`
-                            }
-                        </p>
-                        <button
-                            className="border border-zinc-400 rounded-md px-4 py-2 w-fit"
-                            onClick={handleArticleCreation}
-                            disabled={generatingArticle}
-                        >
-                        { generatingArticle ? (
-                            <PulseLoader color="#ffffff" size={8}/>
-                        ) : "Generate"}
-                        </button>
+
+            { 
+                articleStep && articleStep !== AgentStep.Final && (
+                    <div className="flex flex-col justify-center items-center gap-4">
+                        <h2 className="text-2xl font-bold">Unable to find an article for &ldquo;{searchTerm}&ldquo;</h2>
+
+                        <div className="flex flex-col justify-center items-center gap-4">
+                            <p className="text-xl">We are creating a customized article based on your search</p>
+                            <i className="text-lg">{articleStep ? stepLabel[articleStep] : "Assembling our team"}</i>
+                            <PulseLoader color="#ffffff"/>
+
+                            <span className="mt-10 text-gray-500">
+                                <Markdown>
+                                    {stepContent}
+                                </Markdown>
+                            </span>
+                        </div>
                     </div>
                 )
             }
 
             {
-                !generatingArticle && newArticleCid && (
+                (articleStep && articleStep === AgentStep.Final && (
                     <div className="flex flex-col items-center justify-center gap-2">
                         <h2 className="text-2xl font-bold">Your article is ready</h2>
                         <p className="text-lg">An article about &ldquo;{searchTerm}&ldquo; has been generated.</p>
@@ -115,18 +143,22 @@ export default function List() {
                             Click here to view it.
                         </Link>
                     </div>
-                )
+                ))
             }
 
-            <div className="flex flex-col gap-8">
-                {articles?.map((article) => (
-                    <Link key={article.cid} href={`articles/${article.cid}`} className="flex flex-col gap-2 max-w-[600px]">
+            {
+                !articleStep && !searchTerm && (
+                    <div className="flex flex-col gap-8">
+                    {articles?.map((article) => (
+                        <Link key={article.cid} href={`articles/${article.cid}`} className="flex flex-col gap-2 max-w-[600px]">
                         <h2 className="text-2xl font-bold">{article.title}</h2>
                         <i className="text-sm">{article.description}</i>
                         <p className="text-sm">Published at: {article.createdAt.toLocaleDateString()}</p>
-                    </Link>
-                ))}
-            </div>
+                        </Link>
+                    ))}
+                    </div>
+                )
+            }
         </div>
     )
 }

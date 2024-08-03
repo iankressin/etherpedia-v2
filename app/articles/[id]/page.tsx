@@ -12,14 +12,8 @@ export const metadata: Metadata = {
 async function fetchArticle(id: string): Promise<string | null> {
 
   try {
-      console.log('Fethcihng article with id: ', id)
-      console.time('ipfs')
     const res = await fetch(`https://tomato-pretty-tern-662.mypinata.cloud/ipfs/${id}`)
     const article = await res.text()
-    console.timeEnd('ipfs')
-    console.log({
-        article
-    })
 
     console.log({
         content: matter(article).content
@@ -52,7 +46,8 @@ export default async function ArticlePage({ params }: { params: { id: string } }
         [&>div>h4]:text-md [&>div>h4]:font-bold [&>div>h4]:mt-2 [&>div>h4]:font-sans [&>div>h4]:text-yellow
         [&>div>blockquote]:px-4 [&>div>blockquote]:border-l-4 [&>div>blockquote]:italic
         [&>div>pre]:bg-stone-900 [&>div>pre]:p-4 [&>div>pre]:rounded [&>div>pre]:text-sm
-        [&>div>p>a]:text-blue-400 [&>div>p>a]:underline [&>div>p>a]:underline-offset-2
+        [&>div>a]:text-blue-400 [&>div>p>a]:underline [&>div>p>a]:underline-offset-2
+        [&>a]:text-blue-400 [&>p>a]:underline [&>p>a]:underline-offset-2
         [&>div>p>em]:text-xl [&>div>p>em]:text-center
         [&>div>ul>li]:list-disc [&>div>ul]:gap-2 [&>div>ul]:flex [&>div>ul]:flex-col
         [&>div>ul>li>ul]:list-[circle] [&>div>ul>li>ul]:px-8

@@ -1,13 +1,10 @@
 "use server";
 
-import { Pipeline } from "@/app/agents/Pipeline";
-import { research } from "@/app/agents/researcher";
-import { edit } from "@/app/agents/editor";
-import { write } from "@/app/agents/writer";
-import { MetadataSchema } from "@/app/models/article";
-import matter from "gray-matter";
-import { saveArticleMetadata } from "@/app/lib/mongo";
-import { uploadFile } from "@/app/lib/ipfs";
+import { Pipeline } from "@/app/lib/agents/Pipeline";
+import { research } from "@/app/lib/agents/researcher";
+import { edit } from "@/app/lib/agents/editor";
+import { write } from "@/app/lib/agents/writer";
+import { Repository } from "../lib/repository";
 
 export async function generateArticle(
   userPrompt: string,
@@ -19,18 +16,7 @@ export async function generateArticle(
       .push(edit)
       .run(userPrompt);
 
-    const frontMatter = matter(result).data;
-    console.log(frontMatter);
-    const cid = await uploadFile(result, frontMatter.title);
-    const metadata = MetadataSchema.parse({
-      ...frontMatter,
-      cid,
-      createdAt: new Date(),
-    });
-
-    await saveArticleMetadata(metadata);
-
-    return { cid };
+    return { cid: await Repository.saveFile(result) };
   } catch (error) {
     console.error(error);
 
