@@ -7,7 +7,8 @@ import { Repository } from "@/app/lib/repository";
 import matter from "gray-matter";
 import { NextRequest } from "next/server";
 
-export const dynamic = "force-dynamic";
+// TODO: if ever deployed to Vercel, should uncomment this variable
+// export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const searchTerm = request.nextUrl.searchParams.get("search");
@@ -20,10 +21,9 @@ export async function GET(request: NextRequest) {
 
   return new Response(articleStream, {
     headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
       Connection: "keep-alive",
-      "Content-Encoding": "none",
-      "Cache-Control": "no-cache, no-transform",
-      "Content-Type": "text/event-stream; charset=utf-8",
     },
   });
 }
