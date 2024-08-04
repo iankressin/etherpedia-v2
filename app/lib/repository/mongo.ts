@@ -29,10 +29,15 @@ export async function getArticles(
     await mongoClient.connect();
     const db = mongoClient.db("etherpedia-metadata");
     const collection = db.collection("metadata");
-
-    const articles = await (searchTerm
-      ? collection.find({ title: { $regex: searchTerm, $options: "i" } })
-      : collection.find()
+    const articles = await (
+      searchTerm
+        ? collection.find({
+            $or: [
+              { "metadata.title": { $regex: searchTerm, $options: "i" } },
+              { "metadata.tags": { $regex: searchTerm, $options: "i" } },
+            ],
+          })
+        : collection.find()
     ).toArray();
 
     return articles.map((article) => MetadataSchema.parse(article.metadata));

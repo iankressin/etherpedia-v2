@@ -8,7 +8,7 @@ import matter from "gray-matter";
 import { NextRequest } from "next/server";
 
 // TODO: if ever deployed to Vercel, should uncomment this variable
-// export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const searchTerm = request.nextUrl.searchParams.get("search");
@@ -31,24 +31,24 @@ function getArticleStream(searchTerm: string) {
   const writer = responseStream.writable.getWriter();
 
   new Pipeline()
-    .push(research, (researchOutput) => {
-      writer.write(
+    .push(research, async (researchOutput) => {
+      return writer.write(
         ArticleEventPayload.encodePayload({
           step: AgentStep.Research,
           data: matter(researchOutput).content,
         }),
       );
     })
-    .push(write, (writeOutput) => {
-      writer.write(
+    .push(write, async (writeOutput) => {
+      return writer.write(
         ArticleEventPayload.encodePayload({
           step: AgentStep.Write,
           data: writeOutput,
         }),
       );
     })
-    .push(edit, (editOutput) => {
-      writer.write(
+    .push(edit, async (editOutput) => {
+      await writer.write(
         ArticleEventPayload.encodePayload({
           step: AgentStep.Edit,
           data: editOutput,
@@ -58,7 +58,7 @@ function getArticleStream(searchTerm: string) {
     .run(searchTerm)
     .then((result) => {
       Repository.saveFile(result).then((cid) => {
-        writer.write(
+        return writer.write(
           ArticleEventPayload.encodePayload({
             data: cid,
             step: AgentStep.Final,
@@ -68,9 +68,6 @@ function getArticleStream(searchTerm: string) {
     })
     .catch((e) => {
       console.log("NOT GOOD", e);
-    })
-    .finally(() => {
-      writer.close();
     });
 
   return responseStream;

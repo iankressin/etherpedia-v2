@@ -40,11 +40,12 @@ export default function List() {
             try {
                 const articles = await getArticles(searchTerm)
 
-                if (!articles.length) {
+                if (articles.length) {
+                    setArticles(articles);
+                } else {
                     handleArticleCreation(searchTerm)
                 }
 
-                setArticles(articles);
             } catch (e) {
                 console.error('Failed to fetch articles: ', e)
             } finally {
@@ -124,11 +125,11 @@ export default function List() {
                             <i className="text-lg">{articleStep ? stepLabel[articleStep] : "Assembling our team"}</i>
                             <PulseLoader color="#ffffff"/>
 
-                            <span className="mt-10 text-gray-500">
+                            <div className="mt-10 text-gray-500 w-full laptop:max-w-4xl">
                                 <Markdown>
                                     {stepContent}
                                 </Markdown>
-                            </span>
+                            </div>
                         </div>
                     </div>
                 )
@@ -147,7 +148,7 @@ export default function List() {
             }
 
             {
-                !articleStep && !searchTerm && (
+                !articleStep && (
                     <div className="flex flex-col gap-8">
                     {articles?.map((article) => (
                         <Link key={article.cid} href={`articles/${article.cid}`} className="flex flex-col gap-2 max-w-[600px]">

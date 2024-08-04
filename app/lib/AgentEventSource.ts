@@ -24,13 +24,17 @@ export class AgentEventSource {
 
       if (articleEvent.step === AgentStep.Research) {
         this.researchStepCallback?.(articleEvent);
-      } else if (articleEvent.step === AgentStep.Final) {
-        eventSource.close();
-        this.finalArticleCallback?.(articleEvent);
       } else if (articleEvent.step === AgentStep.Write) {
         this.writerStepCallback?.(articleEvent);
       } else if (articleEvent.step === AgentStep.Edit) {
         this.editorStepCallback?.(articleEvent);
+      } else if (articleEvent.step === AgentStep.Final) {
+        console.log({
+          articleEvent,
+        });
+
+        eventSource.close();
+        this.finalArticleCallback?.(articleEvent);
       }
     };
   }
