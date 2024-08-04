@@ -17,9 +17,7 @@ export async function GET(request: NextRequest) {
     return new Response("Missing search term", { status: 400 });
   }
 
-  const articleStream = getArticleStream(searchTerm);
-
-  return new Response(articleStream, {
+  return new Response(getArticleStream(searchTerm).readable, {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
@@ -29,49 +27,51 @@ export async function GET(request: NextRequest) {
 }
 
 function getArticleStream(searchTerm: string) {
-  return new ReadableStream({
-    async start(controller) {
-      try {
-        const result = await new Pipeline()
-          .push(research, (researchOutput) => {
-            controller.enqueue(
-              ArticleEventPayload.encodePayload({
-                step: AgentStep.Research,
-                data: matter(researchOutput).content,
-              }),
-            );
-          })
-          .push(write, (writeOutput) => {
-            controller.enqueue(
-              ArticleEventPayload.encodePayload({
-                step: AgentStep.Write,
-                data: writeOutput,
-              }),
-            );
-          })
-          .push(edit, (editOutput) => {
-            controller.enqueue(
-              ArticleEventPayload.encodePayload({
-                step: AgentStep.Edit,
-                data: editOutput,
-              }),
-            );
-          })
-          .run(searchTerm);
+  const responseStream = new TransformStream();
+  const writer = responseStream.writable.getWriter();
 
-        const cid = await Repository.saveFile(result);
-
-        controller.enqueue(
+  new Pipeline()
+    .push(research, (researchOutput) => {
+      writer.write(
+        ArticleEventPayload.encodePayload({
+          step: AgentStep.Research,
+          data: matter(researchOutput).content,
+        }),
+      );
+    })
+    .push(write, (writeOutput) => {
+      writer.write(
+        ArticleEventPayload.encodePayload({
+          step: AgentStep.Write,
+          data: writeOutput,
+        }),
+      );
+    })
+    .push(edit, (editOutput) => {
+      writer.write(
+        ArticleEventPayload.encodePayload({
+          step: AgentStep.Edit,
+          data: editOutput,
+        }),
+      );
+    })
+    .run(searchTerm)
+    .then((result) => {
+      Repository.saveFile(result).then((cid) => {
+        writer.write(
           ArticleEventPayload.encodePayload({
             data: cid,
             step: AgentStep.Final,
           }),
         );
-      } catch (e) {
-        controller.error(e);
-      } finally {
-        controller.close();
-      }
-    },
-  });
+      });
+    })
+    .catch((e) => {
+      console.log("NOT GOOD", e);
+    })
+    .finally(() => {
+      writer.close();
+    });
+
+  return responseStream;
 }
