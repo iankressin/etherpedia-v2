@@ -29,10 +29,6 @@ export class AgentEventSource {
       } else if (articleEvent.step === AgentStep.Edit) {
         this.editorStepCallback?.(articleEvent);
       } else if (articleEvent.step === AgentStep.Final) {
-        console.log({
-          articleEvent,
-        });
-
         eventSource.close();
         this.finalArticleCallback?.(articleEvent);
       }

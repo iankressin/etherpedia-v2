@@ -7,6 +7,7 @@ import { Repository } from "@/app/lib/repository";
 import matter from "gray-matter";
 import { NextRequest } from "next/server";
 
+// TODO: if ever deployed to Vercel, should uncomment this variable
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
@@ -16,62 +17,61 @@ export async function GET(request: NextRequest) {
     return new Response("Missing search term", { status: 400 });
   }
 
-  const articleStream = getArticleStream(searchTerm);
-
-  return new Response(articleStream, {
+  return new Response(getArticleStream(searchTerm).readable, {
     headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
       Connection: "keep-alive",
-      "Content-Encoding": "none",
-      "Cache-Control": "no-cache, no-transform",
-      "Content-Type": "text/event-stream; charset=utf-8",
     },
   });
 }
 
 function getArticleStream(searchTerm: string) {
-  return new ReadableStream({
-    async start(controller) {
-      try {
-        const result = await new Pipeline()
-          .push(research, (researchOutput) => {
-            controller.enqueue(
-              ArticleEventPayload.encodePayload({
-                step: AgentStep.Research,
-                data: matter(researchOutput).content,
-              }),
-            );
-          })
-          .push(write, (writeOutput) => {
-            controller.enqueue(
-              ArticleEventPayload.encodePayload({
-                step: AgentStep.Write,
-                data: writeOutput,
-              }),
-            );
-          })
-          .push(edit, (editOutput) => {
-            controller.enqueue(
-              ArticleEventPayload.encodePayload({
-                step: AgentStep.Edit,
-                data: editOutput,
-              }),
-            );
-          })
-          .run(searchTerm);
+  const responseStream = new TransformStream();
+  const writer = responseStream.writable.getWriter();
 
-        const cid = await Repository.saveFile(result);
-
-        controller.enqueue(
+  new Pipeline()
+    .push(research, async (researchOutput) => {
+      return writer.write(
+        ArticleEventPayload.encodePayload({
+          step: AgentStep.Research,
+          data: matter(researchOutput).content,
+        }),
+      );
+    })
+    .push(write, async (writeOutput) => {
+      return writer.write(
+        ArticleEventPayload.encodePayload({
+          step: AgentStep.Write,
+          data: writeOutput,
+        }),
+      );
+    })
+    .push(edit, async (editOutput) => {
+      await writer.write(
+        ArticleEventPayload.encodePayload({
+          step: AgentStep.Edit,
+          data: editOutput,
+        }),
+      );
+    })
+    .run(searchTerm)
+    .then((result) => {
+      Repository.saveFile(result).then((cid) => {
+        return writer.write(
           ArticleEventPayload.encodePayload({
             data: cid,
             step: AgentStep.Final,
           }),
         );
-      } catch (e) {
-        controller.error(e);
-      } finally {
-        controller.close();
-      }
-    },
-  });
+      });
+    })
+    .catch((e) => {
+      console.log("NOT GOOD", e);
+    })
+    .finally(() => {
+      writer.close();
+    });
+
+  return responseStream;
 }
