@@ -70,9 +70,6 @@ function getArticleStream(searchTerm: string) {
     })
     .catch((e) => {
       console.log("NOT GOOD", e);
-    })
-    .finally(() => {
-      writer.close();
     });
 
   return responseStream;
