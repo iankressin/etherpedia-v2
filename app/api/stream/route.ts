@@ -7,6 +7,8 @@ import { Repository } from "@/app/lib/repository";
 import matter from "gray-matter";
 import { NextRequest } from "next/server";
 
+export const maxDuration = 300;
+
 // TODO: if ever deployed to Vercel, should uncomment this variable
 export const dynamic = "force-dynamic";
 
